@@ -9,6 +9,11 @@ jobs:
     runs-on: windows-latest
 
     steps:
+      - name: Install OpenSSH Client
+        shell: powershell
+        run: |
+          Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0
+
       - name: Checkout code
         uses: actions/checkout@v3
 
@@ -21,12 +26,23 @@ jobs:
         run: go build -o app.exe
 
       - name: Deploy to Server
-        uses: appleboy/ssh-action@v0.1.10
-        with:
-          host: ${{ secrets.SERVER_IP }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          script: |
-            cd C:\path\to\your\project
-            git pull origin master
-            .\deploy.ps1
+        shell: powershell
+        run: |
+          $keyPath = "$env:RUNNER_TEMP\ssh_key"
+          "${{ secrets.SSH_KEY }}" | Out-File -FilePath $keyPath -Encoding utf8
+
+          icacls $keyPath /inheritance:r
+          icacls $keyPath /grant:r "$env:USERNAME:(R)"
+
+          $sshCommand = @"
+          cd C:\your\actual\project\path
+          git pull origin master
+          .\deploy.ps1
+          "@
+
+          ssh -i $keyPath -o StrictHostKeyChecking=no $env:SERVER_USER@$env:SERVER_IP "$sshCommand"
+
+          Remove-Item $keyPath -Force
+        env:
+          SERVER_IP: ${{ secrets.SERVER_IP }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
