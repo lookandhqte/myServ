@@ -24,6 +24,10 @@ jobs:
 
       - name: Build
         run: go build -o app.exe
+      - name: Install Posh-SSH module
+        shell: powershell
+        run: |
+          Install-Module -Name Posh-SSH -Force -Confirm:$false -SkipPublisherCheck
 
       - name: Deploy to Server
         shell: powershell
