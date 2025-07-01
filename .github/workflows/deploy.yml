@@ -30,21 +30,40 @@ jobs:
         run: |
           Write-Host "Testing SSH connection to $env:SERVER_IP..."
 
+          $testCommand = "echo 'Testing connection' | sshpass -p '$env:SSH_PASS' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 $env:SERVER_USER@$env:SERVER_IP 'hostname'"
+
+          try {
+              $output = Invoke-Expression $testCommand 2>&1
+              if ($LASTEXITCODE -eq 0) {
+                  Write-Host "SSH connection successful! Server: $output"
+              } else {
+                  Write-Host "##[error] SSH connection failed! Exit code: $LASTEXITCODE"
+                  Write-Host "Error output: $output"
+                  exit 1
+              }
+          } catch {
+              Write-Host "##[error] SSH test command failed: $_"
+              exit 1
+          }
+
           $commands = @"
           cd "C:\Users\rosel\OneDrive\Desktop\work\myTGassistant"
           git pull origin master
           .\deploy.ps1
           "@
-          $sshCommand = "sshpass -p '$env:SSH_PASS' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 $env:SERVER_USER@$env:SERVER_IP `"$commands`""
 
+          $sshCommand = "sshpass -p '$env:SSH_PASS' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 $env:SERVER_USER@$env:SERVER_IP `"$commands`""
+          Write-Host "Executing deployment commands..."
           Invoke-Expression $sshCommand
 
           if ($LASTEXITCODE -ne 0) {
               Write-Host "##[error] Deployment failed with exit code $LASTEXITCODE"
               exit 1
           }
+          else {
+              Write-Host "Deployment successful!"
+          }
         env:
           SERVER_IP: ${{ secrets.SERVER_IP }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
-          SSH_KEY: ${{ secrets.SSH_KEY }}
           SSH_PASS: ${{ secrets.SSH_PASS }}
