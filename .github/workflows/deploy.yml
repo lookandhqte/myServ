@@ -28,37 +28,22 @@ jobs:
       - name: Deploy to Server
         shell: powershell
         run: |
-          $keyPath = "$env:RUNNER_TEMP\ssh_key_$([Guid]::NewGuid().Guid)"
-          "${{ secrets.SSH_KEY }}" | Out-File -FilePath $keyPath -Encoding utf8
-
-          icacls $keyPath /inheritance:r
-          icacls $keyPath /grant:r "$env:USERNAME:R"
-
-          Write-Host "Проверка подключения к $env:SERVER_IP:22..."
+          Write-Host "Testing SSH connection to $env:SERVER_IP..."
           if (-not (Test-NetConnection $env:SERVER_IP -Port 22 -InformationLevel Quiet)) {
-            Write-Host "Ошибка: Сервер недоступен!"
+            Write-Host "ERROR: Server unavailable!"
             exit 1
           }
-
-          $sshCommand = @"
-          cd C:\Users\rosel\OneDrive\Desktop\work\myTGassistant
-          git pull origin master
-          .\deploy.ps1
+          # Передаём ключ через pipe (без создания файла)
+          $env:SSH_KEY | ssh -i /dev/stdin `
+            -o StrictHostKeyChecking=no `
+            -o ConnectTimeout=15 `
+            $env:SERVER_USER@$env:SERVER_IP @"
+            cd "C:\Users\rosel\OneDrive\Desktop\work\myTGassistant"
+            git pull origin master
+            .\deploy.ps1
           "@
 
-          try {
-            # Выполняем команды на сервере
-            ssh -i $keyPath -o ConnectTimeout=15 -o StrictHostKeyChecking=no $env:SERVER_USER@$env:SERVER_IP $sshCommand
-            Write-Host "Деплой успешно завершен!"
-          }
-          catch {
-            Write-Host "Ошибка при выполнении деплоя: $_"
-            exit 1
-          }
-          finally {
-            # Всегда удаляем ключ
-            Remove-Item $keyPath -Force -ErrorAction SilentlyContinue
-          }
         env:
           SERVER_IP: ${{ secrets.SERVER_IP }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
