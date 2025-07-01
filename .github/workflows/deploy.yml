@@ -24,11 +24,10 @@ jobs:
 
       - name: Build
         run: go build -o app.exe
-      - name: Install Posh-SSH module
-        shell: powershell
-        run: |
-          Install-Module -Name Posh-SSH -Force -Confirm:$false -SkipPublisherCheck
-
+      # - name: Install Posh-SSH module
+      #   shell: powershell
+      #   run: |
+      #     Install-Module -Name Posh-SSH -Force -Confirm:$false -SkipPublisherCheck
       - name: Deploy to Server
         shell: powershell
         run: |
@@ -43,7 +42,7 @@ jobs:
               cd "C:\Users\rosel\OneDrive\Desktop\work\myTGassistant"
               git pull origin master
               .\deploy.ps1
-              "@
+          "@
         env:
           SERVER_IP: ${{ secrets.SERVER_IP }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
