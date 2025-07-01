@@ -32,27 +32,19 @@ jobs:
       - name: Deploy to Server
         shell: powershell
         run: |
-          $securePass = ConvertTo-SecureString "$env:SSH_PASS" -AsPlainText -Force
-          $cred = New-Object System.Management.Automation.PSCredential("$env:SERVER_USER", $securePass)
+          # Сохраняем приватный ключ в файл
+          $env:SSH_KEY | Out-File -FilePath deploy_key -Encoding ASCII
 
-          # Выполняем команды через SSH
-          $session = New-SSHSession -ComputerName $env:SERVER_IP -Credential $cred -AcceptKey
-          $result = Invoke-SSHCommand -SSHSession $session -Command @"
-          cd "C:\Users\rosel\OneDrive\Desktop\work\myTGassistant"
-          git pull origin master
-          .\deploy.ps1
-          "@
-
-          # Проверяем результат
-          if ($result.ExitStatus -ne 0) {
-              Write-Host "##[error] Deployment failed!"
-              Write-Host $result.Error
-              exit 1
-          }
-          else {
-              Write-Host "Deployment successful!"
-          }
+          # Подключаемся с использованием ключа
+          ssh -i deploy_key `
+              -o StrictHostKeyChecking=no `
+              -o ConnectTimeout=30 `
+              $env:SERVER_USER@$env:SERVER_IP @"
+              cd "C:\Users\rosel\OneDrive\Desktop\work\myTGassistant"
+              git pull origin master
+              .\deploy.ps1
+              "@
         env:
           SERVER_IP: ${{ secrets.SERVER_IP }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
-          SSH_PASS: ${{ secrets.SSH_PASS }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
