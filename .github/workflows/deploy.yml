@@ -32,28 +32,32 @@ jobs:
       - name: Build
         run: go build -o app.exe
 
+      - name: Prepare SSH
+        shell: powershell
+        run: |
+          # Создаем директорию .ssh
+          New-Item -ItemType Directory -Path "$env:USERPROFILE\.ssh" -Force | Out-Null
+
+          # Добавляем новый host key
+          ssh-keyscan -H $env:SERVER_IP >> "$env:USERPROFILE\.ssh\known_hosts"
+
+          # Проверяем добавленный ключ
+          Write-Host "Added host key:"
+          Get-Content "$env:USERPROFILE\.ssh\known_hosts" | Select-Object -Last 1
+
       - name: Deploy to Server
         shell: powershell
         run: |
           # Сохраняем приватный ключ
           $env:SSH_KEY | Out-File -FilePath deploy_key -Encoding ASCII
-
-          # Устанавливаем ограниченные права на файл
           icacls.exe deploy_key /reset
           icacls.exe deploy_key /grant:r "$env:USERNAME:(R)"
 
-          # Тестовое подключение
+          # Основные команды (без StrictHostKeyChecking)
           ssh -i deploy_key `
-              -o StrictHostKeyChecking=no `
-              -o ConnectTimeout=30 `
-              $env:SERVER_USER@$env:SERVER_IP "hostname"
-
-          # Основные команды
-          ssh -i deploy_key `
-              -o StrictHostKeyChecking=no `
               -o ConnectTimeout=30 `
               $env:SERVER_USER@$env:SERVER_IP @"
-            cd "C:\Users\rosel\OneDrive\Desktop\work\myTGassistant"
+            cd "$env:PATH_TO_PROJECT"
             git pull origin master
             .\deploy.ps1
           "@
@@ -62,6 +66,4 @@ jobs:
               Write-Host "##[error] Deployment failed!"
               exit 1
           }
-          else {
-              Write-Host "Deployment successful!"
-          }
+          Write-Host "Deployment successful!"
