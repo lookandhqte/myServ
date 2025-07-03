@@ -35,19 +35,19 @@ jobs:
       - name: Prepare SSH
         shell: powershell
         run: |
-          New-Item -ItemType Directory -Path "$env:USERPROFILE\.ssh" -Force | Out-Null
+          New-Item -ItemType Directory -Path "$env:SERVER_USER\.ssh" -Force | Out-Null
 
-          ssh-keyscan -H $env:SERVER_IP >> "$env:USERPROFILE\.ssh\known_hosts"
+          ssh-keyscan -H $env:SERVER_IP >> "$env:SERVER_USER\.ssh\known_hosts"
 
           Write-Host "Added host key:"
-          Get-Content "$env:USERPROFILE\.ssh\known_hosts" | Select-Object -Last 1
+          Get-Content "$env:SERVER_USER\.ssh\known_hosts" | Select-Object -Last 1
 
       - name: Deploy to Server
         shell: powershell
         run: |
           $env:SSH_KEY | Out-File -FilePath deploy_key -Encoding ASCII
           icacls.exe deploy_key /reset
-          icacls.exe deploy_key /grant:r "$env:USERNAME:(R)"
+          icacls.exe deploy_key /grant:r "$env:SERVER_USER:(R)"
 
           ssh -i deploy_key `
               -o ConnectTimeout=30 `
