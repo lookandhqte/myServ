@@ -9,7 +9,7 @@ env:
   SERVER_IP: ${{ secrets.SERVER_IP }}
   SERVER_USER: ${{ secrets.SERVER_USER }}
   SSH_KEY: ${{ secrets.SSH_KEY }}
-  PATH_TO_PROJECT: "C:/Users/rosel/OneDrive/Desktop/work/myTGassistant"
+  PATH_TO_PROJECT: "C:/Users/rosel/myPROJECTS/myTGassistant"
 
 jobs:
   build-and-deploy:
@@ -35,25 +35,20 @@ jobs:
       - name: Prepare SSH
         shell: powershell
         run: |
-          # Создаем директорию .ssh
           New-Item -ItemType Directory -Path "$env:USERPROFILE\.ssh" -Force | Out-Null
 
-          # Добавляем новый host key
           ssh-keyscan -H $env:SERVER_IP >> "$env:USERPROFILE\.ssh\known_hosts"
 
-          # Проверяем добавленный ключ
           Write-Host "Added host key:"
           Get-Content "$env:USERPROFILE\.ssh\known_hosts" | Select-Object -Last 1
 
       - name: Deploy to Server
         shell: powershell
         run: |
-          # Сохраняем приватный ключ
           $env:SSH_KEY | Out-File -FilePath deploy_key -Encoding ASCII
           icacls.exe deploy_key /reset
           icacls.exe deploy_key /grant:r "$env:USERNAME:(R)"
 
-          # Основные команды (без StrictHostKeyChecking)
           ssh -i deploy_key `
               -o ConnectTimeout=30 `
               $env:SERVER_USER@$env:SERVER_IP @"
