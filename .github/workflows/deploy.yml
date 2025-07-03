@@ -46,8 +46,6 @@ jobs:
         shell: powershell
         run: |
           $env:SSH_KEY | Out-File -FilePath deploy_key -Encoding ASCII
-          icacls.exe deploy_key /reset
-          icacls.exe deploy_key /grant:r "$env:SERVER_USER:(R)"
 
           ssh -i deploy_key `
               -o ConnectTimeout=30 `
