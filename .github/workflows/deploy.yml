@@ -35,28 +35,40 @@ jobs:
       - name: Prepare SSH
         shell: powershell
         run: |
-          New-Item -ItemType Directory -Path "$env:SERVER_USER\.ssh" -Force | Out-Null
+          # Исправленный путь
+          New-Item -ItemType Directory -Path "$env:USERPROFILE\.ssh" -Force | Out-Null
 
-          ssh-keyscan -H $env:SERVER_IP >> "$env:SERVER_USER\.ssh\known_hosts"
+          # Добавляем хост
+          ssh-keyscan -H $env:SERVER_IP >> "$env:USERPROFILE\.ssh\known_hosts"
 
           Write-Host "Added host key:"
-          Get-Content "$env:SERVER_USER\.ssh\known_hosts" | Select-Object -Last 1
+          Get-Content "$env:USERPROFILE\.ssh\known_hosts" | Select-Object -Last 1
 
       - name: Deploy to Server
         shell: powershell
         run: |
+          # Сохраняем ключ
           $env:SSH_KEY | Out-File -FilePath deploy_key -Encoding ASCII
 
-          ssh -i deploy_key `
-              -o ConnectTimeout=30 `
-              $env:SERVER_USER@$env:SERVER_IP @"
-            cd "$env:PATH_TO_PROJECT"
+          # Устанавливаем права (исправленный синтаксис)
+          icacls.exe deploy_key /reset
+          icacls.exe deploy_key /grant "$env:USERNAME:(R)"
+
+          icacls.exe deploy_key
+
+          $commands = @"
+            cd '$env:PATH_TO_PROJECT'
             git pull origin master
             .\deploy.ps1
           "@
 
+          ssh -vvv -i deploy_key `
+              -o ConnectTimeout=30 `
+              $env:SERVER_USER@$env:SERVER_IP $commands
+
           if ($LASTEXITCODE -ne 0) {
               Write-Host "##[error] Deployment failed!"
+              Get-Content $env:GITHUB_ENV
               exit 1
           }
           Write-Host "Deployment successful!"
