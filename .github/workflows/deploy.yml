@@ -31,6 +31,14 @@ jobs:
 
       - name: Build
         run: go build -o app.exe
+      - name: Add known_hosts SSH
+        run: |
+          #Обновляем known_hosts
+          # Создаем .ssh директорию
+          New-Item -Path "$env:USERPROFILE\.ssh" -ItemType Directory -Force
+
+          # Добавляем хост в known_hosts
+          ssh-keyscan $env:SERVER_IP >> "$env:USERPROFILE\.ssh\known_hosts"
 
       - name: Deploy to Server
         shell: powershell
