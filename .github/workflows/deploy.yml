@@ -32,12 +32,6 @@ jobs:
       - name: Build
         run: go build -o app.exe
 
-      - name: Prepare SSH
-        shell: powershell
-        run: |
-          # Добавляем хост
-          ssh-keyscan -H $env:SERVER_IP >> "$env:USERPROFILE\.ssh\known_hosts"
-
       - name: Deploy to Server
         shell: powershell
         run: |
