@@ -46,14 +46,24 @@ jobs:
           #Создаем файл ssh-ключа
           $env:SSH_KEY | Out-File -FilePath deploy_key -Encoding ASCII
 
-          $acl = Get-Acl deploy_key
-          $rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-              $env:USERNAME,
+          $keyPath = ".\deploy_key"
+          $acl = Get-Acl -Path $keyPath
+
+          $acl.SetAccessRuleProtection($true, $false)  # Block inheritance, remove inherited rules
+          $acl.Access | ForEach-Object { $acl.RemoveAccessRule($_) } | Out-Null
+
+          $user = [System.Security.Principal.NTAccount]($env:USERNAME)
+          $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+              $user,
               "Read",
               "Allow"
           )
-          $acl.SetAccessRule($rule)
-          Set-Acl -Path deploy_key -AclObject $acl
+          $acl.AddAccessRule($accessRule)
+
+          Set-Acl -Path $keyPath -AclObject $acl
+
+          Write-Host "Final permissions:"
+          (Get-Acl -Path $keyPath).Access | Format-Table IdentityReference, FileSystemRights, AccessControlType
 
           $remoteCommands = @"
             cd '$env:PATH_TO_PROJECT'
