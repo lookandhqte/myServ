@@ -47,10 +47,8 @@ jobs:
       - name: Deploy to Server
         shell: powershell
         run: |
-          # Сохраняем ключ
           $env:SSH_KEY | Out-File -FilePath deploy_key -Encoding ASCII
 
-          # Устанавливаем права (исправленный синтаксис)
           icacls.exe deploy_key /reset
           icacls.exe deploy_key /grant "$env:USERNAME:(R)"
 
