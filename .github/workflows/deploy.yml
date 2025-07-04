@@ -49,26 +49,29 @@ jobs:
         run: |
           $env:SSH_KEY | Out-File -FilePath deploy_key -Encoding ASCII
 
-          icacls.exe deploy_key /reset
-          icacls.exe deploy_key /grant "$env:USERNAME:R"
+          $acl = Get-Acl deploy_key
+          $rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+              $env:USERNAME,
+              "Read",
+              "Allow"
+          )
+          $acl.SetAccessRule($rule)
+          Set-Acl -Path deploy_key -AclObject $acl
 
-          icacls.exe deploy_key
-
-          $commands = @"
+          $remoteCommands = @"
             cd '$env:PATH_TO_PROJECT'
             git pull origin master
             .\deploy.ps1
           "@
 
+          Write-Host "Trying SSH connection..."
           ssh -vvv -i deploy_key `
-            -o IdentitiesOnly=yes `
-            -o PreferredAuthentications=publickey `
-            -o UserKnownHostsFile="$env:USERPROFILE\.ssh\known_hosts" `
-            $env:SERVER_USER@$env:SERVER_IP $remoteCommands
+              -o IdentitiesOnly=yes `
+              -o PreferredAuthentications=publickey `
+              $env:SERVER_USER@$env:SERVER_IP $remoteCommands
 
           if ($LASTEXITCODE -ne 0) {
               Write-Host "##[error] Deployment failed!"
-              Get-Content $env:GITHUB_ENV
               exit 1
           }
           Write-Host "Deployment successful!"
