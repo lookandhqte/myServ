@@ -43,15 +43,20 @@ jobs:
       - name: Deploy to Server
         shell: powershell
         run: |
-          #Создаем файл ssh-ключа
+          # Создаем .ssh директорию
+          New-Item -Path "$env:USERPROFILE\.ssh" -ItemType Directory -Force
+
+          # Добавляем хост в known_hosts
+          ssh-keyscan $env:SERVER_IP >> "$env:USERPROFILE\.ssh\known_hosts"
+
+          # Создаем файл ssh-ключа
           $env:SSH_KEY | Out-File -FilePath deploy_key -Encoding ASCII
 
+          # Устанавливаем минимальные права (только для текущего пользователя)
           $keyPath = ".\deploy_key"
           $acl = Get-Acl -Path $keyPath
-
-          $acl.SetAccessRuleProtection($true, $false)  # Block inheritance, remove inherited rules
+          $acl.SetAccessRuleProtection($true, $false)
           $acl.Access | ForEach-Object { $acl.RemoveAccessRule($_) } | Out-Null
-
           $user = [System.Security.Principal.NTAccount]($env:USERNAME)
           $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
               $user,
@@ -59,28 +64,21 @@ jobs:
               "Allow"
           )
           $acl.AddAccessRule($accessRule)
-
           Set-Acl -Path $keyPath -AclObject $acl
 
-          Write-Host "Final permissions:"
-          (Get-Acl -Path $keyPath).Access | Format-Table IdentityReference, FileSystemRights, AccessControlType
+          # Команды для выполнения на сервере с исправлением кодировки
+          $commands = @(
+              "chcp 65001",  # Устанавливаем UTF-8 кодировку
+              "cd '$env:PATH_TO_PROJECT'",
+              "git pull origin master",
+              ".\deploy.ps1"
+          )
+          $remoteCommand = [string]::Join("; ", $commands)
 
-          $remoteCommands = @"
-            cd '$env:PATH_TO_PROJECT'
-            git pull origin master
-            .\deploy.ps1
-          "@
-
-          Write-Host "Trying SSH connection..."
-          ssh -vvv -i deploy_key $env:SERVER_USER@$env:SERVER_IP $remoteCommands
-          Start-Sleep -Seconds 5
-          Write-Host "Known hosts content 1:"
-          Get-Content "$env:USERPROFILE\.ssh\known_hosts"
-          Write-Host "Known hosts content 2:"
-          Get-Content "$env:USERPROFILE\.ssh\known_hosts2"
+          # Выполняем команды через SSH
+          ssh -i deploy_key $env:SERVER_USER@$env:SERVER_IP $remoteCommand
 
           if ($LASTEXITCODE -ne 0) {
               Write-Host "##[error] Deployment failed!"
               exit 1
           }
-          Write-Host "Deployment successful!"
