@@ -50,7 +50,7 @@ jobs:
           $env:SSH_KEY | Out-File -FilePath deploy_key -Encoding ASCII
 
           icacls.exe deploy_key /reset
-          icacls.exe deploy_key /grant "$env:USERNAME:(R)"
+          icacls.exe deploy_key /grant "$env:USERNAME:R"
 
           icacls.exe deploy_key
 
@@ -61,8 +61,10 @@ jobs:
           "@
 
           ssh -vvv -i deploy_key `
-              -o ConnectTimeout=30 `
-              $env:SERVER_USER@$env:SERVER_IP $commands
+            -o IdentitiesOnly=yes `
+            -o PreferredAuthentications=publickey `
+            -o UserKnownHostsFile="$env:USERPROFILE\.ssh\known_hosts" `
+            $env:SERVER_USER@$env:SERVER_IP $remoteCommands
 
           if ($LASTEXITCODE -ne 0) {
               Write-Host "##[error] Deployment failed!"
