@@ -35,14 +35,8 @@ jobs:
       - name: Prepare SSH
         shell: powershell
         run: |
-          # Исправленный путь
-          New-Item -ItemType Directory -Path "$env:USERPROFILE\.ssh" -Force | Out-Null
-
           # Добавляем хост
           ssh-keyscan -H $env:SERVER_IP >> "$env:USERPROFILE\.ssh\known_hosts"
-
-          Write-Host "Added host key:"
-          Get-Content "$env:USERPROFILE\.ssh\known_hosts" | Select-Object -Last 1
 
       - name: Deploy to Server
         shell: powershell
@@ -65,10 +59,7 @@ jobs:
           "@
 
           Write-Host "Trying SSH connection..."
-          ssh -vvv -i deploy_key `
-              -o IdentitiesOnly=yes `
-              -o PreferredAuthentications=publickey `
-              $env:SERVER_USER@$env:SERVER_IP $remoteCommands
+          ssh -vvv -i deploy_key $env:SERVER_USER@$env:SERVER_IP $remoteCommands
 
           if ($LASTEXITCODE -ne 0) {
               Write-Host "##[error] Deployment failed!"
