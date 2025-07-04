@@ -52,7 +52,7 @@ jobs:
           # Создаем файл ssh-ключа
           $env:SSH_KEY | Out-File -FilePath deploy_key -Encoding ASCII
 
-          # Устанавливаем минимальные права (только для текущего пользователя)
+          # Устанавливаем минимальные права
           $keyPath = ".\deploy_key"
           $acl = Get-Acl -Path $keyPath
           $acl.SetAccessRuleProtection($true, $false)
@@ -66,17 +66,16 @@ jobs:
           $acl.AddAccessRule($accessRule)
           Set-Acl -Path $keyPath -AclObject $acl
 
-          # Команды для выполнения на сервере с исправлением кодировки
+          # Команды для выполнения на сервере (без chcp)
           $commands = @(
-              "chcp 65001",  # Устанавливаем UTF-8 кодировку
               "cd '$env:PATH_TO_PROJECT'",
               "git pull origin master",
-              ".\deploy.ps1"
+              "powershell -ExecutionPolicy Bypass -File deploy.ps1"
           )
-          $remoteCommand = [string]::Join("; ", $commands)
+          $remoteCommand = [string]::Join(" && ", $commands)
 
-          # Выполняем команды через SSH
-          ssh -i deploy_key $env:SERVER_USER@$env:SERVER_IP $remoteCommand
+          # Выполняем команды через SSH с явным указанием оболочки
+          ssh -i deploy_key $env:SERVER_USER@$env:SERVER_IP "powershell -Command `"$remoteCommand`""
 
           if ($LASTEXITCODE -ne 0) {
               Write-Host "##[error] Deployment failed!"
