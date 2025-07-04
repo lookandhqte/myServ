@@ -35,6 +35,7 @@ jobs:
       - name: Deploy to Server
         shell: powershell
         run: |
+          #Создаем файл ssh-ключа
           $env:SSH_KEY | Out-File -FilePath deploy_key -Encoding ASCII
 
           $acl = Get-Acl deploy_key
@@ -54,6 +55,11 @@ jobs:
 
           Write-Host "Trying SSH connection..."
           ssh -vvv -i deploy_key $env:SERVER_USER@$env:SERVER_IP $remoteCommands
+          Start-Sleep -Seconds 5
+          Write-Host "Known hosts content 1:"
+          Get-Content "$env:USERPROFILE\.ssh\known_hosts"
+          Write-Host "Known hosts content 2:"
+          Get-Content "$env:USERPROFILE\.ssh\known_hosts2"
 
           if ($LASTEXITCODE -ne 0) {
               Write-Host "##[error] Deployment failed!"
