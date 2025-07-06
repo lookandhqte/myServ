@@ -2,25 +2,19 @@ name: Deploy
 
 on:
   push:
-    branches:
-      - master
+    branches: [master]
 
 env:
   SERVER_IP: ${{ secrets.SERVER_IP }}
   SERVER_USER: ${{ secrets.SERVER_USER }}
   SSH_KEY: ${{ secrets.SSH_KEY }}
-  PATH_TO_PROJECT: "C:/Users/rosel/myPROJECTS/myTGassistant"
+  PROJECT_DIR: "/home/rosel/Gelya/my_PROJECTS/tgAssistant" 
 
 jobs:
-  build-and-deploy:
-    runs-on: windows-latest
+  deploy:
+    runs-on: ubuntu-latest
 
     steps:
-      - name: Install OpenSSH Client
-        shell: powershell
-        run: |
-          Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0
-
       - name: Checkout code
         uses: actions/checkout@v3
 
@@ -29,55 +23,21 @@ jobs:
         with:
           go-version: "1.24.1"
 
-      - name: Build
-        run: go build -o app.exe
-      - name: Add known_hosts SSH
+      - name: Build binary
+        run: go build -o app
+
+      - name: Setup SSH
         run: |
-          #Обновляем known_hosts
-          # Создаем .ssh директорию
-          New-Item -Path "$env:USERPROFILE\.ssh" -ItemType Directory -Force
-
-          # Добавляем хост в known_hosts
-          ssh-keyscan $env:SERVER_IP >> "$env:USERPROFILE\.ssh\known_hosts"
-
-      - name: Deploy to Server
-        shell: powershell
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H $SERVER_IP >> ~/.ssh/known_hosts
+          
+      - name: Test SSH connection
         run: |
-          # Создаем .ssh директорию
-          New-Item -Path "$env:USERPROFILE\.ssh" -ItemType Directory -Force
+          ssh -i ~/.ssh/deploy_key -T $SERVER_USER@$SERVER_IP "echo 'SSH connection successful!'"
 
-          # Добавляем хост в known_hosts
-          ssh-keyscan $env:SERVER_IP >> "$env:USERPROFILE\.ssh\known_hosts"
-
-          # Создаем файл ssh-ключа
-          $env:SSH_KEY | Out-File -FilePath deploy_key -Encoding ASCII
-
-          # Устанавливаем минимальные права
-          $keyPath = ".\deploy_key"
-          $acl = Get-Acl -Path $keyPath
-          $acl.SetAccessRuleProtection($true, $false)
-          $acl.Access | ForEach-Object { $acl.RemoveAccessRule($_) } | Out-Null
-          $user = [System.Security.Principal.NTAccount]($env:USERNAME)
-          $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-              $user,
-              "Read",
-              "Allow"
-          )
-          $acl.AddAccessRule($accessRule)
-          Set-Acl -Path $keyPath -AclObject $acl
-
-          # Команды для выполнения на сервере (без chcp)
-          $commands = @(
-              "cd '$env:PATH_TO_PROJECT'",
-              "git pull origin master",
-              "powershell -ExecutionPolicy Bypass -File deploy.ps1"
-          )
-          $remoteCommand = [string]::Join(" && ", $commands)
-
-          # Выполняем команды через SSH с явным указанием оболочки
-          ssh -i deploy_key $env:SERVER_USER@$env:SERVER_IP "powershell -Command `"$remoteCommand`""
-
-          if ($LASTEXITCODE -ne 0) {
-              Write-Host "##[error] Deployment failed!"
-              exit 1
-          }
+      - name: Deploy to server
+        run: |
+          scp -i ~/.ssh/deploy_key ./app $SERVER_USER@$SERVER_IP:$PROJECT_DIR/app_new
+          ssh -i ~/.ssh/deploy_key $SERVER_USER@$SERVER_IP "cd $PROJECT_DIR && chmod +x deploy.sh && ./deploy.sh"
