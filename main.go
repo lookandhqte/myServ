@@ -17,21 +17,20 @@ func main() {
 	if port == "" {
 		port = "3000"
 	}
-	// Обработчик статических файлов (изображения, CSS, JS)
-	fs := http.FileServer(http.Dir("./static"))
-	// http.Handle("/static/", http.StripPrefix("/static/", fs))
-	http.Handle("/static/", http.StripPrefix("/static/",
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if strings.HasPrefix(r.URL.Path, ".") {
-				http.NotFound(w, r)
-				return
-			}
-			w.Header().Set("Cache-Control", "public, max-age=31536000")
-			fs.ServeHTTP(w, r)
-		}),
-	))
-	// Общий мультиплексор для обоих серверов
 	mux := http.NewServeMux()
+	
+	staticHandler := http.StripPrefix("/static/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        // Security: Block hidden files
+        if strings.HasPrefix(r.URL.Path, ".") {
+            http.NotFound(w, r)
+            return
+        }
+        w.Header().Set("Cache-Control", "public, max-age=31536000")
+        http.FileServer(http.Dir("./static")).ServeHTTP(w, r)
+    }))
+	
+    mux.Handle("/static/", staticHandler)
+	
 
 	// Основные обработчики
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
