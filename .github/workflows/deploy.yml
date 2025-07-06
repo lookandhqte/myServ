@@ -40,9 +40,14 @@ jobs:
           
       - name: Test SSH connection
         run: |
+          set -x
+          echo "Trying to connect"
           ssh -i ~/.ssh/deploy_key -T $SERVER_USER@$SERVER_IP "echo 'SSH connection successful!'"
 
       - name: Deploy to server
         run: |
+          set -x
+          echo "Deploy to server: command 1"
           scp -i ~/.ssh/deploy_key ./app $SERVER_USER@$SERVER_IP:$PROJECT_DIR/app_new
+          echo "Deploy to server: command 2"
           ssh -i ~/.ssh/deploy_key $SERVER_USER@$SERVER_IP "cd $PROJECT_DIR && chmod +x deploy.sh && ./deploy.sh"
