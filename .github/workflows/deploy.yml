@@ -48,6 +48,6 @@ jobs:
         run: |
           set -x
           echo "Deploy to server: command 1"
-          scp -i ~/.ssh/deploy_key ./app $SERVER_USER@$SERVER_IP:$PROJECT_DIR/app_new
+          scp -o BatchMode=yes -i ~/.ssh/deploy_key ./app $SERVER_USER@$SERVER_IP:$PROJECT_DIR/app_new
           echo "Deploy to server: command 2"
-          ssh -i ~/.ssh/deploy_key $SERVER_USER@$SERVER_IP "cd $PROJECT_DIR && chmod +x deploy.sh && ./deploy.sh"
+          ssh -o BatchMode=yes -i ~/.ssh/deploy_key $SERVER_USER@$SERVER_IP "cd $PROJECT_DIR && chmod +x deploy.sh && ./deploy.sh"
